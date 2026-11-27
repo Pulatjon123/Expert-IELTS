@@ -9,6 +9,8 @@ const Ai = z.object({
   primaryModel: z.string().trim().min(3).max(100),
   fastModel: z.string().trim().min(3).max(100),
   dailyRequestsPerUser: z.coerce.number().int().min(1).max(10000),
+  weeklyWritingChecks: z.coerce.number().int().min(0).max(1000),
+  weeklySpeakingChecks: z.coerce.number().int().min(0).max(1000),
   useFallbacks: z.boolean(),
   instructions: z.record(z.string(), z.string().max(4000)),
 });

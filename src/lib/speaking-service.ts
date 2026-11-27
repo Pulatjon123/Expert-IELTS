@@ -1,8 +1,10 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import type { Prisma, SpeakingRecording, SpeakingTopic } from "@prisma/client";
 import { asInterview, currentTurnIndex } from "./interview-state";
 import { prisma } from "./db";
 import { HttpError } from "./auth";
+import { assertWeeklyCheckAvailable } from "./ai/weekly-limit";
 import { deleteFile, readStoredFile, saveFile } from "./storage";
 import { parseWav, SAMPLE_RATE } from "./audio/wav";
 import { transcribe, type SttResult } from "./audio/stt";
@@ -54,25 +56,34 @@ export async function saveRecording(args: {
   attempt: number;
   questionIndex: number;
   audio: Buffer;
+  /** Set when the browser already uploaded the file straight to storage (see directUploadKey). */
+  storedKey?: string;
 }) {
-  const session = await getOwnedSession(args.sessionId, args.userId);
-  const questions = sessionQuestions(session);
-  if (args.questionIndex < 0 || args.questionIndex >= questions.length) throw new HttpError(400, "Invalid question.");
-  if (session.mode === "INTERVIEW") {
-    // In an interview only the examiner's latest question can be (re-)answered: later questions build on earlier answers.
-    const state = asInterview(session.interview);
-    if (!state || args.attempt !== 1 || currentTurnIndex(state) !== args.questionIndex) throw new HttpError(409, "This question can no longer be answered.");
-  }
-  if (args.audio.length > MAX_AUDIO_BYTES) throw new HttpError(413, "Recording is too large.");
   let info;
+  let questions: string[];
   try {
-    info = parseWav(args.audio);
-  } catch {
-    throw new HttpError(400, "Unsupported audio format. Please record again.");
+    const session = await getOwnedSession(args.sessionId, args.userId);
+    questions = sessionQuestions(session);
+    if (args.questionIndex < 0 || args.questionIndex >= questions.length) throw new HttpError(400, "Invalid question.");
+    if (session.mode === "INTERVIEW") {
+      // In an interview only the examiner's latest question can be (re-)answered: later questions build on earlier answers.
+      const state = asInterview(session.interview);
+      if (!state || args.attempt !== 1 || currentTurnIndex(state) !== args.questionIndex) throw new HttpError(409, "This question can no longer be answered.");
+    }
+    if (args.audio.length > MAX_AUDIO_BYTES) throw new HttpError(413, "Recording is too large.");
+    try {
+      info = parseWav(args.audio);
+    } catch {
+      throw new HttpError(400, "Unsupported audio format. Please record again.");
+    }
+    if (info.sampleRate !== SAMPLE_RATE || info.channels !== 1 || info.bitsPerSample !== 16) throw new HttpError(400, "Audio must be 16 kHz mono WAV.");
+    if (info.durationSec < 1) throw new HttpError(400, "The recording is too short.");
+    if (info.durationSec > 330) throw new HttpError(400, "The recording is longer than 5 minutes.");
+  } catch (e) {
+    // Don't leave a rejected direct upload behind in storage.
+    if (args.storedKey) await deleteFile(args.storedKey).catch(() => {});
+    throw e;
   }
-  if (info.sampleRate !== SAMPLE_RATE || info.channels !== 1 || info.bitsPerSample !== 16) throw new HttpError(400, "Audio must be 16 kHz mono WAV.");
-  if (info.durationSec < 1) throw new HttpError(400, "The recording is too short.");
-  if (info.durationSec > 330) throw new HttpError(400, "The recording is longer than 5 minutes.");
 
   const previous = await prisma.speakingRecording.findMany({
     where: { sessionId: args.sessionId, attempt: args.attempt, questionIndex: args.questionIndex },
@@ -89,8 +100,8 @@ export async function saveRecording(args: {
       durationSec: Math.round(info.durationSec * 10) / 10,
     },
   });
-  const audioPath = `audio/${args.userId}/${rec.id}.wav`;
-  await saveFile(audioPath, args.audio);
+  const audioPath = args.storedKey ?? `audio/${args.userId}/${rec.id}.wav`;
+  if (!args.storedKey) await saveFile(audioPath, args.audio, "audio/wav");
   await prisma.speakingRecording.update({ where: { id: rec.id }, data: { audioPath } });
   for (const p of previous) {
     await deleteFile(p.audioPath).catch(() => {});
@@ -104,6 +115,19 @@ export async function saveRecording(args: {
   } catch (e) {
     return { recording: { ...rec, audioPath }, transcriptionError: e instanceof Error ? e.message : "Transcription failed." };
   }
+}
+
+const DIRECT_KEY_RE = /^audio\/([a-z0-9]+)\/direct-[a-f0-9]{32}\.wav$/;
+
+/** A fresh storage key for a recording the browser uploads straight to storage. */
+export function newDirectUploadKey(userId: string) {
+  return `audio/${userId}/direct-${randomUUID().replace(/-/g, "")}.wav`;
+}
+
+/** Only keys this server handed out to the same user are accepted back. */
+export function isOwnDirectUploadKey(key: string, userId: string) {
+  const m = key.match(DIRECT_KEY_RE);
+  return Boolean(m && m[1] === userId);
 }
 
 export async function transcribeRecording(recordingId: string, userId: string) {
@@ -169,6 +193,8 @@ export async function assessAttempt(sessionId: string, userId: string, attempt: 
     : describeTopic(session.topic!);
   const recs = latestPerQuestion(await prisma.speakingRecording.findMany({ where: { sessionId, attempt } }));
   if (!recs.length) throw new HttpError(400, "Record at least one answer first.");
+  // Checked before transcription / pronunciation so no money is spent when the weekly limit is reached.
+  await assertWeeklyCheckAvailable(userId, "SPEAKING");
   if (!isSttConfigured() && recs.some((r) => !r.transcript)) throw new AiNotConfiguredError("Speech-to-text (STT_API_URL / STT_API_KEY)");
   const ready: SpeakingRecording[] = [];
   for (const r of recs) ready.push(r.transcript == null ? await transcribeRecording(r.id, userId) : r);

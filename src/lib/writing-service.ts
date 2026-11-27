@@ -2,6 +2,7 @@ import "server-only";
 import type { WritingTask } from "@prisma/client";
 import { prisma } from "./db";
 import { HttpError } from "./auth";
+import { assertWeeklyCheckAvailable } from "./ai/weekly-limit";
 import { assessWriting, generateWritingPrep, WritingPrepSchema, type WritingAssessmentOutput } from "./ai/writing";
 import { candidateVocab, focusWeaknesses, countOccurrences, occursIn, recordVocabUsage, recordWeaknesses, updateWeaknessStatuses } from "./learning";
 import { clampCriterion, countWords, overallBand } from "./ielts";
@@ -65,6 +66,8 @@ export async function submitAndAssess(attemptId: string, userId: string) {
   const essay = attempt.content.trim();
   const wordCount = countWords(essay);
   if (wordCount < 30) throw new HttpError(400, "Please write at least 30 words before requesting an evaluation.");
+  // Weekly limit is checked before anything changes, so the essay stays an editable draft if no checks are left.
+  await assertWeeklyCheckAvailable(userId, "WRITING");
 
   await prisma.$transaction([
     prisma.writingDraftVersion.create({ data: { attemptId, content: essay, wordCount } }),

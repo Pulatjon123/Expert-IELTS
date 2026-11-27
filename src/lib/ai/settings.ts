@@ -20,6 +20,10 @@ export interface AiSettings {
   fastModel: string;
   /** Equal for every student: protects the owner's budget, never a paid tier. */
   dailyRequestsPerUser: number;
+  /** Writing assessments each student may request per week (Monday–Sunday). Same for everyone; admins are exempt. */
+  weeklyWritingChecks: number;
+  /** Speaking assessments each student may request per week. A practice set with a second attempt uses two. */
+  weeklySpeakingChecks: number;
   /** Server-side fallback on refusals (Claude API only). */
   useFallbacks: boolean;
   /** Extra owner instructions appended to every system prompt, per feature. */
@@ -27,9 +31,11 @@ export interface AiSettings {
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
-  primaryModel: "claude-opus-5-5",
-  fastModel: "claude-opus-5-5",
+  primaryModel: "claude-sonnet-5-5",
+  fastModel: "claude-sonnet-5-5",
   dailyRequestsPerUser: 80,
+  weeklyWritingChecks: 3,
+  weeklySpeakingChecks: 3,
   useFallbacks: true,
   instructions: {},
 };

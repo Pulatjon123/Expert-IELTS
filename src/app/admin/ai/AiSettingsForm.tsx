@@ -58,6 +58,17 @@ export function AiSettingsForm({ initial }: { initial: AiSettings }) {
           <Label hint="same for every student">AI requests per student per 24 h</Label>
           <Input type="number" min={1} value={v.dailyRequestsPerUser} onChange={(e) => setV({ ...v, dailyRequestsPerUser: Number(e.target.value) })} />
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label hint="per student, per week">Writing checks</Label>
+            <Input type="number" min={0} value={v.weeklyWritingChecks} onChange={(e) => setV({ ...v, weeklyWritingChecks: Number(e.target.value) })} />
+          </div>
+          <div>
+            <Label hint="per student, per week">Speaking checks</Label>
+            <Input type="number" min={0} value={v.weeklySpeakingChecks} onChange={(e) => setV({ ...v, weeklySpeakingChecks: Number(e.target.value) })} />
+          </div>
+          <p className="col-span-2 -mt-1 text-xs text-muted">Resets every Monday. You (admin) are not limited. A Speaking practice set with a second attempt uses two checks.</p>
+        </div>
         <label className="flex items-center gap-2 self-end pb-2 text-sm">
           <input type="checkbox" checked={v.useFallbacks} onChange={(e) => setV({ ...v, useFallbacks: e.target.checked })} />
           Retry on another model if a request is declined (server-side fallback)

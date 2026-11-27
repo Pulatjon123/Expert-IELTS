@@ -2,7 +2,7 @@ import { Readable } from "node:stream";
 import { prisma } from "@/lib/db";
 import { requireUser, HttpError } from "@/lib/auth";
 import { handler } from "@/lib/api";
-import { fileSize, streamFile } from "@/lib/storage";
+import { fileSize, signedReadUrl, streamFile } from "@/lib/storage";
 
 /** Stream a recording to its owner (or an admin). Supports Range requests so the player can seek. */
 export const GET = handler(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
@@ -13,6 +13,9 @@ export const GET = handler(async (req: Request, { params }: { params: Promise<{ 
     select: { audioPath: true, mimeType: true },
   });
   if (!rec) throw new HttpError(404, "Recording not found.");
+  // Cloud storage: send the player to a short-lived private link (supports seeking, and avoids the 4.5 MB response limit).
+  const signed = await signedReadUrl(rec.audioPath, 3600);
+  if (signed) return new Response(null, { status: 302, headers: { Location: signed, "Cache-Control": "private, no-store" } });
   const size = await fileSize(rec.audioPath);
   const headers: Record<string, string> = {
     "Content-Type": rec.mimeType,

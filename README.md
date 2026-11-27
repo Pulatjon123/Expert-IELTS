@@ -34,7 +34,8 @@ The owner account is created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (min 12 chara
 - **Preparation material is cached per question** and shared by all students, so each question costs one AI call, ever.
 - Structured outputs (JSON schema) mean no retries for malformed output.
 - An equal **fair-use limit** applies to every student (default 80 AI requests per 24 h, set in Admin → AI management). It protects the budget and is not a paid tier.
-- Admin → AI management lets you switch models. Approximate list prices per million tokens: Opus 5.5 $4 in / $20 out (default), Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50.
+- A **weekly check limit** applies to every student: by default 3 Writing and 3 Speaking assessments per week (Monday–Sunday), set in Admin → AI management. Only successful assessments count; the admin is not limited. Drafts and recordings are kept, so a student can request the check after the reset.
+- Admin → AI management lets you switch models. Approximate list prices per million tokens: Opus 5.5 $4 in / $20 out, Sonnet 5.5 $2 / $10 (default), Haiku 5.5 $0.10 / $0.50.
 - Rough cost per action on Opus 5.5: preparation is about $0.10–0.15, paid once per question. An essay assessment is about $0.08–0.12.
 - Admin → Analytics and AI management show requests, tokens and the estimated spend.
 

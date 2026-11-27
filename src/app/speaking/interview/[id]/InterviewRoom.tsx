@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BarChart3, Trash2, UserRound, Volume2, VolumeX, ArrowRight } from "lucide-react";
 import { Alert, Badge, Button, Card, Spinner, cn } from "@/components/ui";
 import { api, ApiError } from "@/lib/fetcher";
+import { uploadRecording } from "@/lib/upload-recording";
 import { useI18n } from "@/lib/i18n/client";
 import type { SpeakingSessionView } from "@/lib/speaking-view";
 import type { InterviewTurn } from "@/lib/interview-state";
@@ -122,13 +123,7 @@ export function InterviewRoom({ initial, services }: { initial: SpeakingSessionV
   }
 
   async function upload(wav: Blob) {
-    const form = new FormData();
-    form.append("audio", wav, "answer.wav");
-    form.append("attempt", "1");
-    form.append("questionIndex", String(turns.length - 1));
-    const res = await fetch(`/api/speaking/sessions/${view.id}/recordings`, { method: "POST", body: form });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error ?? "Upload failed.");
+    await uploadRecording(view.id, wav, 1, turns.length - 1);
     await refresh();
     await advance();
   }

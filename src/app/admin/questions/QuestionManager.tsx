@@ -308,8 +308,8 @@ function ImageField({ value, onChange }: { value: string; onChange: (url: string
       setError("Faqat PNG, JPG, WebP yoki GIF rasm. / Only PNG, JPG, WebP or GIF.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Rasm 5 MB dan katta. / The image is larger than 5 MB.");
+    if (file.size > 4 * 1024 * 1024) {
+      setError("Rasm 4 MB dan katta. / The image is larger than 4 MB.");
       return;
     }
     setUploading(true);
@@ -327,7 +327,7 @@ function ImageField({ value, onChange }: { value: string; onChange: (url: string
 
   return (
     <div>
-      <Label hint="PNG, JPG, WebP, GIF · max 5 MB">Rasm / Image (chart, map, diagram)</Label>
+      <Label hint="PNG, JPG, WebP, GIF · max 4 MB">Rasm / Image (chart, map, diagram)</Label>
       {value ? (
         <div className="flex flex-wrap items-start gap-4 rounded-lg border border-border p-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

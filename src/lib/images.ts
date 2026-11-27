@@ -4,7 +4,8 @@ import { readStoredFile, saveFile } from "./storage";
 
 /** Question images (Task 1 charts, maps, diagrams) uploaded by the owner, stored next to the audio files. */
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Below Vercel's 4.5 MB request limit.
+export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export const IMAGE_URL_PREFIX = "/api/images/";
 
 const TYPES = {
@@ -29,8 +30,12 @@ export function detectImageExt(buf: Buffer): Ext | null {
 
 export async function saveQuestionImage(buf: Buffer, ext: Ext) {
   const name = `${randomUUID().replace(/-/g, "")}.${ext}`;
-  await saveFile(`images/${name}`, buf);
+  await saveFile(`images/${name}`, buf, TYPES[ext]);
   return `${IMAGE_URL_PREFIX}${name}`;
+}
+
+export function isQuestionImageName(name: string) {
+  return NAME_RE.test(name);
 }
 
 /** Returns the stored image for a valid file name, or null. */

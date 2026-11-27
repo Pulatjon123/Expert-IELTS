@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Alert, Badge, Button, Card, cn } from "@/components/ui";
 import { SourceBadge } from "@/components/QuestionMeta";
 import { api, ApiError } from "@/lib/fetcher";
+import { uploadRecording } from "@/lib/upload-recording";
 import { useI18n } from "@/lib/i18n/client";
 import type { Locale } from "@/lib/i18n/dict";
 import type { SpeakingSessionView, RecordingView } from "@/lib/speaking-view";
@@ -178,14 +179,8 @@ function AttemptPanel({
   const recorded = view.questions.filter((_, i) => latest(view.recordings, attempt, i)).length;
 
   async function upload(q: number, wav: Blob) {
-    const form = new FormData();
-    form.append("audio", wav, "answer.wav");
-    form.append("attempt", String(attempt));
-    form.append("questionIndex", String(q));
-    const res = await fetch(`/api/speaking/sessions/${view.id}/recordings`, { method: "POST", body: form });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error ?? "Upload failed.");
-    setNotice(body.transcriptionError ? `Answer saved. ${body.transcriptionError}` : null);
+    const { transcriptionError } = await uploadRecording(view.id, wav, attempt, q);
+    setNotice(transcriptionError ? `Answer saved. ${transcriptionError}` : null);
     await refresh();
   }
 
